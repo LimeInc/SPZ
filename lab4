@@ -1,0 +1,88 @@
+#include <fcntl.h>
+#include <signal.h>
+#include <stdio.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <cstdlib>
+#include <iostream>
+#include <fstream>
+#include <ctime>
+using namespace std;
+char filename[] = "file.txt";
+fstream file;
+int N = 10,M = 5;
+pid_t pid0, pid1;
+void f1(int signum)
+{
+    file.open(filename,ios_base::out|ios_base::app);
+    srand(time(NULL));
+    for(int i = 0; i < N; i++)
+    {
+        int a = i;
+        file << a << "  ";
+    }
+    file << endl;
+    file.close();
+    M=M-1;
+    if (M>=0)
+        kill(pid0,SIGUSR1);
+    else
+        kill(0, SIGTERM);
+
+
+}
+void f2(int signum)
+{
+    file.open(filename,ios_base::in);
+    while(!file.eof())
+    {
+        int a;
+        file >> a;
+        if (!file.eof())
+        {
+            cout << a << "  ";
+        }
+    }
+    file.close();
+
+    cout << endl << endl;
+    M=M-1;
+    if (M>=0)
+        kill(pid1,SIGUSR2);
+    else
+        kill(0, SIGTERM);
+
+}
+void f3(int signum)
+{
+    cout << "PID " << getpid() << " close now...\n";
+    exit(EXIT_SUCCESS);
+}
+int main()
+{
+    setpgrp();
+    file.open(filename,ios_base::out);
+    file.close();
+    pid0 = getpid();
+    cout << "Process parent: pid = " << pid0 << endl;
+    pid1 = fork();
+    if (pid1 == 0)
+    {
+        pid1 = getpid();
+        cout << "Process child: pid = " << pid1 << endl;
+        signal(SIGUSR2,f1);
+        signal(SIGTERM,f3);
+        kill(pid0,SIGUSR1);
+        for(;;);
+    }
+    else
+    {
+         signal(SIGUSR1,f2);
+         signal(SIGTERM,f3);
+         while(1);
+    }
+
+    cout << endl;
+    return 0;
+}
+
