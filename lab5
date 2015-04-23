@@ -1,0 +1,138 @@
+#include <cstdlib>
+#include <iostream>
+#include <fstream>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#include <sys/sem.h>
+#include <sys/wait.h>
+#include <semaphore.h>
+#include <signal.h>
+#include <unistd.h>
+#include <fcntl.h>
+using namespace std;
+
+
+const int  N_const = 5,K1_const = 5,K2_const = 3,t_const = 1;
+const char SEMAPHORE_NAME[] = "/semaphore";
+pid_t pid1,pid2;
+int K1,K2,N,t;
+int shmid,*pint;
+void *addr;
+key_t key = 1;
+sem_t *sem;
+
+int main(int argc, char *argv[])
+{
+    setpgrp();
+    if (argc > 4)
+    {
+        N = atoi(argv[1]);
+        K1 = atoi(argv[2]);
+        K2 = atoi(argv[3]);
+        t = atoi(argv[4]);
+    }
+    else
+    {
+        N = N_const;
+        K1 = K1_const;
+        K2 = K2_const;
+        t = t_const;
+    }
+
+    if( (sem = sem_open(SEMAPHORE_NAME,O_CREAT,0777,0)) == SEM_FAILED )
+    {
+           cout << "err";
+           exit(0);
+    }
+    pid1 = getpid();
+    cout << " Father " << pid1 << " taked semaphore\n";
+
+
+    pid2 = fork();
+    if (pid2==0)
+    {
+        pid2 = getpid();
+        cout << "Son " << pid2 << " started\n";
+        if ( (sem = sem_open(SEMAPHORE_NAME, 0)) == SEM_FAILED )
+        {
+            cout << "err2";
+            exit(0);
+        }
+        sem_wait(sem);
+        cout << "Son " << getpid() << " taked semaphore\n";
+
+
+
+        shmid = shmget(key,N*sizeof(int),0777);
+        if (shmid <= 0)
+        {
+            cout << "Son " << getpid() << " do not found any memory!!!" << endl;
+        }
+        else
+        {
+            if (K2 < K1)
+            {
+                addr = shmat(shmid,0,0);
+                pint = (int*)addr;
+                ofstream file("rezult.txt",ios_base::out);
+                for(int i = 0; i < K2; i++)
+                {
+                    cout << "Son " << getpid() << " read " << pint << " data " << *pint << endl;
+                    file << *pint;
+                    pint++;
+                    sleep(t);
+                }
+                file.close();
+
+             }
+            else
+            {
+                cout << "You can not read so much\n";
+
+            }
+        }
+
+
+        sem_close(sem);
+        cout << "Son " << getpid() << " leave semaphore\n";
+
+
+    }
+    else
+    {
+        if (K1 <= N)
+        {
+            shmid = shmget(key,N*sizeof(int),0777|IPC_CREAT);
+            addr = shmat(shmid,0,0);
+            pint = (int*)addr;
+            for(int i = 0; i < K1; i++)
+            {
+                *pint = i;
+                cout << "Father " << getpid() << " write " << pint << " data " << *pint << endl;
+                pint++;
+                sleep(t);
+            }
+
+            sem_post(sem);
+            cout << "Father " << getpid() << " leaved semaphore\n";
+
+            int a;
+            wait(&a);
+
+
+            shmctl(shmid,IPC_RMID,0);
+            cout << "Father " <<  pid1 << " succesfully clean shared memory\n";
+            sem_close(sem);
+            sem_unlink(SEMAPHORE_NAME);
+            cout << "Father " << getpid() << " unlinked semaphore\n";
+        }
+        else
+        {
+            cout << "You can not write data in memory, because free size in memory is very small!!!" << endl;
+
+        }
+    }
+    return 0;
+}
