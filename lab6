@@ -1,0 +1,56 @@
+#include <QProcess>
+#include <vector>
+#include <list>
+#include <stdio.h>
+#include <iostream>
+#include <cstdlib>
+#include <time.h>
+#include <fstream>
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+
+
+using namespace std;
+
+struct Data
+{
+    char name[25];
+    int time;
+
+}inf;
+
+int main(int argc, char *argv[])
+{
+    vector<Data> mas;
+    list<int> timeP;
+    pid_t pid;
+    int slp;
+    ifstream file("file.txt");
+    for(int i = 0; i < 4; i++)
+    {
+        file >> inf.name;
+        file >> inf.time;
+        mas.push_back(inf);
+        timeP.push_back(inf.time);
+    }
+    file.close();
+    timeP.sort();
+        for (list<int>::iterator it = timeP.begin(); it != timeP.end(); it++)
+        {
+            for (vector<Data>::iterator i = mas.begin(); i != mas.end(); i++)
+            {
+                Data tmp = *i;
+                if(*it == tmp.time)
+                {
+                    pid = fork();
+                    if (pid == 0) execl(tmp.name,NULL);
+                            else wait(&slp);
+                }
+
+            }
+        }
+
+    return 0;
+}
