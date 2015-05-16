@@ -1,0 +1,100 @@
+#include <iostream>
+#include <fstream>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/ipc.h>
+#include <sys/sem.h>
+#include <sys/wait.h>
+using namespace std;
+
+int sid,N;
+struct sembuf sop;
+union semnum
+{
+    int val;
+    struct semid_ds *buf;
+    ushort *array;
+} sem;
+int p(int sid)
+{
+    sop.sem_num = 0;
+    sop.sem_op = -1;
+    semop(sid,&sop,1);
+}
+int v(int sid)
+{
+    sop.sem_num = 0;
+    sop.sem_op = 1;
+    semop(sid,&sop,1);
+}
+int fibb(int n)
+{
+    if (n < 1) return 0;
+    if (n == 1 || n == 2) return 1;
+    return fibb(n-1)+fibb(n-2);
+}
+
+int main()
+{
+    // semaphore creation
+    sid = semget(76,1,0777|IPC_CREAT);
+    sem.array = (ushort*)malloc(sizeof(ushort));
+    sem.array[0] = 1;
+    sop.sem_flg = SEM_UNDO;
+    semctl(sid,0,SETALL,sem);
+
+    p(sid);
+    int pid1,pid2,pid3 = -1;
+    pid1 = getpid();
+    pid2 = fork();
+    if (pid1 == getpid()) pid3 = fork();
+    if (pid1 == getpid())
+    {
+        int fib;
+        cout << "N = ";
+        cin >> N;
+        ofstream f("N.txt");
+        ofstream out("out.txt");
+        out.close();
+        f << N;
+        f.close();
+        v(sid);
+
+        int st;
+        wait(&st);
+        wait(&st);
+
+        p(sid);
+        ifstream in("out.txt");
+        int a,b;
+        in >> a >> b;
+        cout << "fibb(" << N << ") = " << a+b << endl;
+        v(sid);
+        semctl(sid,1,IPC_RMID);
+    }
+
+    if (pid2 == 0)
+    {
+        p(sid);
+        ifstream f("N.txt");
+        f >> N;
+        ofstream out("out.txt",ios::app);
+        out << fibb(N-1) << endl;
+        out.close();
+        cout << "Son #1 write " << fibb(N-1) << endl;
+        v(sid);
+    }
+
+    if (pid3 == 0)
+    {
+        p(sid);
+        ifstream f("N.txt");
+        f >> N;
+        ofstream out("out.txt",ios::app);
+        out << fibb(N-2) << endl;
+        out.close();
+        cout << "Son #2 write " << fibb(N-2) << endl;
+        v(sid);
+    }
+    return 0;
+}
