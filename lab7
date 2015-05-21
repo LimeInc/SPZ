@@ -1,0 +1,124 @@
+#include <QProcess>
+#include <vector>
+#include <list>
+#include <stdio.h>
+#include <iostream>
+#include <cstdlib>
+#include <time.h>
+#include <fstream>
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+#include <sys/errno.h>
+#include <sched.h>
+#include <string>
+#include <stdio.h>
+#include <stdlib.h>
+
+using namespace std;
+
+struct Data
+{
+    char name[25];
+    int time;
+}inf;
+
+void RR(int a[30])
+{
+    int n = 10,i,k,s=0,r=0,q=0,x=0,e[30],t[30];
+    float m,p=0;
+    for(i=0;i<n;i++)
+    {
+       e[i]=a[i];
+    }
+    cout << "Enter the quanta:";
+    cin >> q;
+    cout << "After round robin sheduling:\n";
+          for(i=0;i<n;i++)
+          {
+              if(x<a[i])
+              {
+                x=a[i];
+              }
+          }
+          k=x/q;
+          while(s<=k)
+          {
+              for(i=0;i<n;i++)
+              {
+                   if(a[i]>0)
+                   {
+                       if(a[i]>q)
+                       {
+                           r=r+q;
+                           a[i]=a[i]-q;
+                           cout << "P" << i+1 << "\t";
+                       }
+                      else
+                      {
+                           r=r+a[i];
+                           a[i]=a[i]-q;
+                           cout << "P" << i+1 << "\t";
+                           t[i]=r;
+                      }
+                  }
+             }
+             s++;
+         }
+         cout << "\nPROCESS EXECUTION\t TIME\t         WAIT TIME\tTURN AROUND TIME\n";
+         for(i=0;i<n;i++)
+         {
+              printf(" %d \t\t\t %d\t\t %d\t\t %d\t\t \n",i,e[i],x,t[i]);
+              x=x+q;
+         }
+         m=x/n;
+         cout << "Average waiting time=  " << m << endl;
+         cout << "Average turn around time=  ";
+         for(i=0;i<n;i++)
+            p=p+t[i];
+         p=p/n;
+         cout << p << endl;
+
+}
+
+int main(int argc, char *argv[])
+{
+    list<Data> mas;
+    int a[30];    
+    int slp;
+    ifstream file("file.txt");
+    for(int i = 0; i < 10; i++)
+    {
+        file >> inf.name;
+        file >> inf.time;
+        a[i] = inf.time;
+        mas.push_back(inf);
+    }
+    file.close();
+    for (list<Data>::iterator it = mas.begin(); it != mas.end(); it++)
+    {
+        Data tmp = *it;
+        cout << tmp.name << "    " << tmp.time << endl;
+    }
+    RR(a);
+
+    struct sched_param param;
+    param.sched_priority = sched_get_priority_max(SCHED_RR);
+    sched_setscheduler(0,SCHED_RR,&param);
+    int pid[10] = {-1,-1,-1,-1,-1,-1,-1,-1,-1,-1};
+    int j = 0;
+    for (list<Data>::iterator it = mas.begin(); it != mas.end(); it++)
+    {
+        Data tmp = *it;
+        pid[j] = fork();
+        if (!pid[j]) execl(tmp.name,tmp.name,NULL);
+        j++;
+    }
+    int st;
+    for (int i=0; i<10; i++) wait(&st);
+
+    return 0;
+}
+
+
